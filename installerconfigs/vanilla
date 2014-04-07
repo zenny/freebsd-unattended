@@ -1,0 +1,46 @@
+export BSDINSTALL_DISTDIR
+export BSDINSTALL_CHROOT
+export BSDINSTALL_TMPETC
+export BSDINSTALL_TMPBOOT
+
+mkdir -p $BSDINSTALL_TMPETC
+mkdir -p $BSDINSTALL_TMPBOOT
+
+# Load VirtIO
+echo 'virtio_load="YES"' >> $BSDINSTALL_TMPBOOT/loader.conf        
+echo 'virtio_pci_load="YES"' >> $BSDINSTALL_TMPBOOT/loader.conf
+echo 'virtio_blk_load="YES"' >> $BSDINSTALL_TMPBOOT/loader.conf
+echo 'virtio_scsi_load="YES"' >> $BSDINSTALL_TMPBOOT/loader.conf
+echo 'virtio_balloon_load="YES"' >> $BSDINSTALL_TMPBOOT/loader.conf
+echo 'if_vtnet_load="YES"' >> $BSDINSTALL_TMPBOOT/loader.conf
+
+# Start some services at boot
+echo 'sshd_enable="YES"' >> $BSDINSTALL_TMPETC/rc.conf
+echo 'ntpd_enable="YES"' >> $BSDINSTALL_TMPETC/rc.conf
+
+PARTITIONS="ada0 {auto freebsd-ufs /}"; export PARTITIONS
+DISTRIBUTIONS="kernel.txz base.txz"; export DISTRIBUTIONS
+
+# Make partitions
+rm -f $PATH_FSTAB
+touch $PATH_FSTAB
+bsdinstall scriptedpart "$PARTITIONS"
+bsdinstall mount
+
+# Unpack distributions
+bsdinstall checksum
+bsdinstall distextract
+
+# Finalize install
+bsdinstall config
+
+# Make sure networking is functional, if we can arrange that
+if [ ! -f $BSDINSTALL_CHROOT/etc/resolv.conf -a -f /etc/resolv.conf ]; then
+         cp /etc/resolv.conf $BSDINSTALL_CHROOT/etc/resolv.conf
+fi
+
+# Clean up and shutdown
+bsdinstall umount
+
+echo "Shutting down now"
+shutdown -p now 
